@@ -1,6 +1,5 @@
 {{- if .Values.checkDeprecation }}
     {{- if .Values.Master }}
-
         {{- if .Values.Master.Name }}
            {{ fail "`Master.Name` does no longer exist. It has been renamed to `master.componentName`" }}
         {{- end }}
@@ -10,7 +9,7 @@
         {{- end }}
 
         {{- if .Values.Master.ImageTag }}
-           {{ fail "`Master.ImageTag` does no longer exist. It has been renamed to `master.tag`" }}
+           {{ fail "`Master.ImageTag` does no longer exist. It has been renamed to `master.imageTag`" }}
         {{- end }}
 
         {{- if .Values.Master.ImagePullPolicy }}

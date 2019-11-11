@@ -2,7 +2,6 @@
 apiVersion: {{ .Values.master.ingress.apiVersion }}
 kind: Ingress
 metadata:
-  namespace: {{ template "jenkins.namespace" . }}
   labels:
     "app.kubernetes.io/name": '{{ template "jenkins.name" .}}'
     "helm.sh/chart": "{{ .Chart.Name }}-{{ .Chart.Version }}"
