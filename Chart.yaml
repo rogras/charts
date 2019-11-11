@@ -14,19 +14,10 @@ maintainers:
   name: viglesiasce
 - email: maorfr@gmail.com
   name: maorfr
-name: jenkins
+- name: torstenwalter
+  email: mail@torstenwalter.de
 sources:
 - https://github.com/jenkinsci/jenkins
 - https://github.com/jenkinsci/docker-jnlp-slave
 - https://github.com/nuvo/kube-tasks
 - https://github.com/jenkinsci/configuration-as-code-plugin
-maintainers:
-- name: lachie83
-  email: lachlan.evenson@microsoft.com
-- name: viglesiasce
-  email: viglesias@google.com
-- name: maorfr
-  email: maorfr@gmail.com
-- name: torstenwalter
-  email: mail@torstenwalter.de
-icon: https://wiki.jenkins-ci.org/download/attachments/2916393/logo.png
