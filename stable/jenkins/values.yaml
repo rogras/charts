@@ -7,18 +7,13 @@
 # See templates/_helpers.tpl
 # nameOverride:
 # fullnameOverride:
-# namespaceOverride:
-
-# For FQDN resolving of the master service. Change this value to match your existing configuration.
-# ref: https://github.com/kubernetes/dns/blob/master/docs/specification.md
-clusterZone: "cluster.local"
 
 master:
   # Used for label app.kubernetes.io/component
   componentName: "jenkins-master"
   image: "jenkins/jenkins"
-  tag: "lts"
-  imagePullPolicy: "Always"
+  imageTag: "lts"
+  imagePullPolicy: "IfNotPresent"
   imagePullSecretName:
   # Optionally configure lifetime for master-container
   lifecycle:
@@ -28,13 +23,8 @@ master:
   #      - "uname"
   #      - "-a"
   numExecutors: 0
-  customJenkinsLabels: []
   # configAutoReload requires UseSecurity is set to true:
-  useSecurity: true
-
-  # enables configuration done directly via XML files
-  # People who want to configure Jenkins via https://github.com/jenkinsci/configuration-as-code-plugin only can set it to false
-  enableXmlConfig: true
+  useSecurity: false
   # Allows to configure different SecurityRealm using Jenkins XML
   securityRealm: |-
     <securityRealm class="hudson.security.LegacySecurityRealm"/>
@@ -63,19 +53,27 @@ master:
   resources:
     requests:
       cpu: "50m"
-      memory: "256Mi"
+      memory: "512Mi"
     limits:
-      cpu: "2000m"
-      memory: "4096Mi"
+      cpu: "500m"
+      memory: "1024Mi"
   # Environment variables that get added to the init container (useful for e.g. http_proxy)
-  # initContainerEnv:
-  #   - name: http_proxy
-  #     value: "http://192.168.64.1:3128"
-  # containerEnv:
-  #   - name: http_proxy
-  #     value: "http://192.168.64.1:3128"
+  initContainerEnv:
+    - name: JENKINS_UC
+      value: http://mirror.xmission.com
+    - name: JENKINS_UC_DOWNLOAD
+      value: http://mirror.xmission.com/jenkins
+
+  # Environment variables that get added to the container (useful for e.g. http_proxy)
+  containerEnv:
+    - name: JENKINS_UC
+      value: http://mirror.xmission.com
+    - name: JENKINS_UC_DOWNLOAD
+      value: http://mirror.xmission.com/jenkins
+
+
   # Set min/max heap here if needed with:
-  # javaOpts: "-Xms512m -Xmx512m"
+  javaOpts: "-Xms512m -Xmx512m"
   # jenkinsOpts: ""
   # jenkinsUrl: ""
   # If you set this prefix and use ingress controller then you might want to set the ingress path below
@@ -95,26 +93,22 @@ master:
   serviceAnnotations: {}
   # Jenkins master custom labels
   deploymentLabels: {}
-  #   foo: bar
-  #   bar: foo
   # Jenkins master service labels
   serviceLabels: {}
   #   service.beta.kubernetes.io/aws-load-balancer-backend-protocol: https
   # Put labels on Jenkins master pod
-  podLabels: {}
+  podLabels:
+    logging.elk.stack: platform
   # Used to create Ingress record (should used with ServiceType: ClusterIP)
   # nodePort: <to set explicitly, choose port between 30000-32767
   # Enable Kubernetes Liveness and Readiness Probes
   # ~ 2 minutes to allow Jenkins to restart when upgrading plugins. Set ReadinessTimeout to be shorter than LivenessTimeout.
   healthProbes: true
-  healthProbesLivenessTimeout: 5
-  healthProbesReadinessTimeout: 5
-  healthProbeLivenessPeriodSeconds: 10
+  healthProbesLivenessTimeout: 240
+  healthProbesReadinessTimeout: 90
   healthProbeReadinessPeriodSeconds: 10
-  healthProbeLivenessFailureThreshold: 5
-  healthProbeReadinessFailureThreshold: 3
-  healthProbeLivenessInitialDelay: 90
-  healthProbeReadinessInitialDelay: 60
+  healthProbeLivenessFailureThreshold: 60
+  
   slaveListenerPort: 50000
   slaveHostPort:
   disabledAgentProtocols:
@@ -125,8 +119,8 @@ master:
       enabled: true
       proxyCompatability: true
   cli: false
-  # Kubernetes service type for the JNLP agent service
-  # slaveListenerServiceType is the Kubernetes Service type for the JNLP agent service,
+  # Kubernetes service type for the JNLP slave service
+  # slaveListenerServiceType is the Kubernetes Service type for the JNLP slave service,
   # either 'LoadBalancer', 'NodePort', or 'ClusterIP'
   # Note if you set this to 'LoadBalancer', you *must* define annotations to secure it. By default
   # this will be an external load balancer and allowing inbound 0.0.0.0/0, a HUGE
@@ -134,8 +128,9 @@ master:
   slaveListenerServiceType: "ClusterIP"
   slaveListenerServiceAnnotations: {}
   slaveKubernetesNamespace:
+  additionalConfig: {}    
 
-  # Example of 'LoadBalancer' type of agent listener with annotations securing it
+  # Example of 'LoadBalancer' type of slave listener with annotations securing it
   # slaveListenerServiceType: LoadBalancer
   # slaveListenerServiceAnnotations:
   #   service.beta.kubernetes.io/aws-load-balancer-internal: "True"
@@ -155,29 +150,29 @@ master:
   #   -Dcom.sun.management.jmxremote.ssl=false
   # jmxPort: 4000
   # Optionally configure other ports to expose in the master container
-  extraPorts: []
+  extraPorts:
   # - name: BuildInfoProxy
   #   port: 9000
 
   # List of plugins to be install during Jenkins master start
-  installPlugins:
-    - kubernetes:1.18.2
-    - workflow-job:2.33
-    - workflow-aggregator:2.6
-    - credentials-binding:1.19
-    - git:3.11.0
+  installPlugins: {}
 
   # Enable to always override the installed plugins with the values of 'master.installPlugins' on upgrade or redeployment.
   # overwritePlugins: true
   # Enable HTML parsing using OWASP Markup Formatter Plugin (antisamy-markup-formatter), useful with ghprb plugin.
   # The plugin is not installed by default, please update master.installPlugins.
   enableRawHtmlMarkupFormatter: false
+
   # Used to approve a list of groovy functions in pipelines used the script-security plugin. Can be viewed under /scriptApproval
-  scriptApproval: []
-  #  - "method groovy.json.JsonSlurperClassic parseText java.lang.String"
-  #  - "new groovy.json.JsonSlurperClassic"
+  scriptApproval: {}
+
+  # Variable to put the tag of the caas-pipeline and configure on the shared library option
+  GlobalLibraries:
+    gitlabHost: "https://git.svb.lacaixa.es"
+    sharedLibrary: "develop"
+    
   # List of groovy init scripts to be executed during Jenkins master start
-  initScripts: []
+  initScripts:
   #  - |
   #    print 'adding global pipeline libraries, register properties, bootstrap jobs...'
   # Kubernetes secret that contains a 'credentials.xml' for Jenkins
@@ -187,7 +182,7 @@ master:
   # master.key and hudson.util.Secret)
   # secretsFilesSecret: jenkins-secrets
   # Jenkins XML job configs to provision
-  jobs: {}
+  jobs:
   #  test: |-
   #    <<xml here>>
 
@@ -199,17 +194,78 @@ master:
   # become the content of the configuration yaml file.  The first line after this is a JCasC root element, eg jenkins, credentials,
   # etc.  Best reference is https://<jenkins_url>/configuration-as-code/reference.  The example below creates a welcome message:
   JCasC:
-    enabled: false
-    defaultConfig: false
-    pluginVersion: "1.27"
-    # it's only used when plugin version is <=1.18 for later version the
-    # configuration as code support plugin is no longer needed
-    supportPluginVersion: "1.18"
-    configScripts: {}
-    # welcome-message: |
-    #   jenkins:
-    #     systemMessage: Welcome to our CI\CD server.  This Jenkins is configured and managed 'as code'.
-
+    enabled: true
+    pluginVersion: 1.31
+    supportPluginVersion: 1.19
+    configScripts:
+      updateConfig: |
+        jenkins:
+          updateCenter:
+            sites: 
+            - id: "default"
+              url: "http://mirror.xmission.com/jenkins/updates/update-center.json"
+      welcome-message: |
+          jenkins:
+            systemMessage: Welcome to our CI\CD server.  This Jenkins is configured and managed 'as code'.
+      roles: |
+        jenkins:
+         authorizationStrategy:
+             roleBased:
+               roles:
+                 global:
+                   - name: "admin"
+                     description: "Jenkins administrators"
+                     permissions:
+                       - "Overall/Administer"
+                     assignments:
+                       - "admin"
+                   - name: "api"
+                     description: "Api User"
+                     permissions:
+                       - "Credentials/Create"
+                       - "Credentials/Delete"
+                       - "Credentials/View"
+                     assignments:
+                       - "api-user"
+                   - name: "slaves-connect"
+                     pattern: ".*"
+                     permissions:
+                       - "Agent/Create"
+                       - "Overall/Read"
+                       - "Agent/Configure"
+                       - "Agent/Connect"
+                       - "Agent/Delete"
+                       - "Agent/Disconnect"
+                     assignments:
+                       - "slave-user"
+                   - name: "dev-user"
+                     description: "Group for developers"
+                     permissions:
+                       - "Overall/Read"
+                     assignments:
+                       - "dev-user"
+                 items:
+                   - name: "dev"
+                     description: "Role for the dev users"
+                     pattern: "caas(/?.*)?"
+                     permissions:
+                       - "Job/Read"
+                       - "Job/Build"
+                       - "Job/Cancel"
+                       - "Run/Replay"
+                     assignments:
+                       - "dev-user"
+                   - name: "jupyter"
+                     description: "Role for the dev users"
+                     pattern: "caas(/?.*)?"
+                     permissions:
+                       - "Job/Read"
+                       - "Job/Build"
+                       - "Job/Cancel"
+                       - "Run/Replay"
+                     assignments:
+                       - "jupyterhub"
+      
   # Optionally specify additional init-containers
   customInitContainers: []
   # - name: custom-init
@@ -224,9 +280,9 @@ master:
       # over SSH to reapply config when changes to the configScripts are detected.  The admin user (or account you specify in
       # master.adminUser) will have a random SSH private key (RSA 4096) assigned unless you specify adminSshKey.  This will be saved to a k8s secret.
       enabled: false
-      image: kiwigrid/k8s-sidecar:0.1.20
+      image: shadwell/k8s-sidecar:0.0.2
       imagePullPolicy: IfNotPresent
-      resources: {}
+      resources:
         #   limits:
         #     cpu: 100m
         #     memory: 100Mi
@@ -247,7 +303,7 @@ master:
       # searchNamespace:
 
     # Allows you to inject additional/other sidecars
-    other: []
+    other:
     ## The example below runs the client for https://smee.io as sidecar container next to Jenkins,
     ## that allows to trigger build behind a secure firewall.
     ## https://jenkins.io/blog/2019/01/07/webhook-firewalls/#triggering-builds-with-webhooks-behind-a-secure-firewall
@@ -271,8 +327,10 @@ master:
   # Leverage a priorityClass to ensure your pods survive resource shortages
   # ref: https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
   # priorityClass: system-cluster-critical
-  podAnnotations: {}
-
+  podAnnotations:
+    prometheus.io/port: "8080"
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/prometheus/"
   # The below two configuration-related values are deprecated and replaced by Jenkins Configuration as Code (see above
   # JCasC key).  They will be deleted in an upcoming version.
   customConfigMap: false
@@ -285,35 +343,22 @@ master:
   # By default, the Jobs Map is only used to set the initial jobs the first time
   # that the chart is installed.  Setting `overwriteJobs` to `true` will overwrite
   # the jenkins jobs configuration with the contents of Jobs every time the pod starts.
-  overwriteJobs: false
+  overwriteJobs: true
 
   ingress:
     enabled: false
     # For Kubernetes v1.14+, use 'networking.k8s.io/v1beta1'
     apiVersion: "extensions/v1beta1"
     labels: {}
-    annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-    # Set this path to jenkinsUriPrefix above or use annotations to rewrite path
-    # path: "/jenkins"
-    # configures the hostname e.g. jenkins.example.com
-    hostName:
+    annotations: 
+     kubernetes.io/ingress.class: nginx
+     kubernetes.io/tls-acme: "true"
+    # Set this path to JenkinsUriPrefix above or use annotations to rewrite path
+     path: "/jenkins"
     tls:
-    # - secretName: jenkins.cluster.local
-    #   hosts:
-    #     - jenkins.cluster.local
-
-  # If you're running on GKE and need to configure a backendconfig
-  # to finish ingress setup, use the following values.
-  # Docs: https://cloud.google.com/kubernetes-engine/docs/concepts/backendconfig
-  backendconfig:
-    enabled: false
-    apiVersion: "extensions/v1beta1"
-    name:
-    labels: {}
-    annotations: {}
-    spec: {}
+     - secretName: alm-tst.pro.harbur.io
+       hosts:
+         - alm-tst.pro.harbur.io
 
   # Openshift route
   route:
@@ -321,8 +366,6 @@ master:
     labels: {}
     annotations: {}
     # path: "/jenkins"
-
-  additionalConfig: {}
 
   # master.hostAliases allows for adding entries to Pod /etc/hosts:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -334,32 +377,10 @@ master:
   #   hostnames:
   #     - other.local
 
-  # Expose Prometheus metrics
-  prometheus:
-    # If enabled, add the prometheus plugin to the list of plugins to install
-    # https://plugins.jenkins.io/prometheus
-    enabled: false
-    # Additional labels to add to the ServiceMonitor object
-    serviceMonitorAdditionalLabels: {}
-    # Set a custom namespace where to deploy ServiceMonitor resource
-    # serviceMonitorNamespace: monitoring
-    scrapeInterval: 60s
-    # This is the default endpoint used by the prometheus plugin
-    scrapeEndpoint: /prometheus
-    # Additional labels to add to the PrometheusRule object
-    alertingRulesAdditionalLabels: {}
-    # An array of prometheus alerting rules
-    # See here: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
-    # The `groups` root object is added by default, simply add the rule entries
-    alertingrules: []
-
-  # Can be used to disable rendering master test resources when using helm template
-  testEnabled: true
-
 agent:
   enabled: true
   image: "jenkins/jnlp-slave"
-  tag: "3.27-1"
+  imageTag: "3.27-1"
   customJenkinsLabels: []
   # name of the secret to be used for image pulling
   imagePullSecretName:
@@ -367,38 +388,35 @@ agent:
   privileged: false
   resources:
     requests:
-      cpu: "512m"
-      memory: "512Mi"
+      cpu: "200m"
+      memory: "256Mi"
     limits:
-      cpu: "512m"
-      memory: "512Mi"
+      cpu: "200m"
+      memory: "256Mi"
   # You may want to change this to true while testing a new image
   alwaysPullImage: false
-  # Controls how agent pods are retained after the Jenkins build completes
+  # Controls how slave pods are retained after the Jenkins build completes
   # Possible values: Always, Never, OnFailure
   podRetention: "Never"
   # You can define the volumes that you want to mount for this container
   # Allowed types are: ConfigMap, EmptyDir, HostPath, Nfs, Pod, Secret
   # Configure the attributes as they appear in the corresponding Java class for that type
   # https://github.com/jenkinsci/kubernetes-plugin/tree/master/src/main/java/org/csanchez/jenkins/plugins/kubernetes/volumes
-  # Pod-wide ennvironment, these vars are visible to any container in the agent pod
-  envVars: []
-  # - name: PATH
-  #   value: /usr/local/bin
-  volumes: []
-  # - type: Secret
-  #   secretName: mysecret
-  #   mountPath: /var/myapp/mysecret
-  # - type: EmptyDir
-  #   mountPath: "/var/lib/containers"
-  #   memory: false
+  # Pod-wide ennvironment, these vars are visible to any container in the slave pod
+  envVars: {}
+
+  volumes:
+    - type: Secret
+      mountPath: "/opt/init"
+      secretName: "jenkins-permanentagent-init-secret"
+
   nodeSelector: {}
   # Key Value selectors. Ex:
   # jenkins-agent: v1
 
   # Executed command when side container gets started
-  command:
-  args:
+  command: 
+  args: 
   # Side container name
   sideContainerName: "jnlp"
   # Doesn't allocate pseudo TTY by default
@@ -410,21 +428,19 @@ agent:
   # Allows the Pod to remain active for reuse until the configured number of
   # minutes has passed since the last step was executed on it.
   idleMinutes: 0
+  
   # Raw yaml template for the Pod. For example this allows usage of toleration for agent pods.
   # https://github.com/jenkinsci/kubernetes-plugin#using-yaml-to-define-pod-templates
   # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-  yamlTemplate: ""
-  # yamlTemplate: |-
-  #   apiVersion: v1
-  #   kind: Pod
-  #   spec:
-  #     tolerations:
-  #     - key: "key"
-  #       operator: "Equal"
-  #       value: "value"
+
+  # yamltemplate to add into the agent object.
+  yamlTemplate: {}
+
+  # User to run with the agents
+  runAsUser: 1000
 
 persistence:
-  enabled: true
+  enabled: false
   ## A manually managed Persistent Volume and Claim
   ## Requires persistence.enabled: true
   ## If defined, PVC must be created manually before volume will be bound
@@ -457,13 +473,12 @@ networkPolicy:
 
 ## Install Default RBAC roles and bindings
 rbac:
-  create: true
-  readSecrets: false
+  create: false
 
 serviceAccount:
-  create: true
+  create: false
   # The name of the service account is autogenerated by default
-  name:
+  name: default
   annotations: {}
 
 serviceAccountAgent:
@@ -471,11 +486,11 @@ serviceAccountAgent:
   create: false
   # The name of the ServiceAccount to use.
   # If not set and create is true, a name is generated using the fullname template
-  name:
+  name: default
   annotations: {}
 
 ## Backup cronjob configuration
-## Ref: https://github.com/maorfr/kube-tasks
+## Ref: https://github.com/nuvo/kube-tasks
 backup:
   # Backup must use RBAC
   # So by enabling backup you are enabling RBAC specific for backup
@@ -490,19 +505,11 @@ backup:
     # Can also be done using environment variables
     iam.amazonaws.com/role: "jenkins"
   image:
-    repository: "maorfr/kube-tasks"
-    tag: "0.2.0"
+    repository: "nuvo/kube-tasks"
+    tag: "0.1.2"
   # Additional arguments for kube-tasks
-  # Ref: https://github.com/maorfr/kube-tasks#simple-backup
+  # Ref: https://github.com/nuvo/kube-tasks#simple-backup
   extraArgs: []
-  # Add existingSecret for AWS credentials
-  existingSecret: {}
-  ## Example for using an existing secret
-   # jenkinsaws:
-  ## Use this key for AWS access key ID
-     # awsaccesskey: jenkins_aws_access_key
-  ## Use this key for AWS secret access key
-     # awssecretkey: jenkins_aws_secret_key
   # Add additional environment variables
   env:
   # Example environment variable required for AWS credentials chain
@@ -516,8 +523,58 @@ backup:
       memory: 1Gi
       cpu: 1
   # Destination to store the backup artifacts
-  # Supported cloud storage services: AWS S3, Minio S3, Azure Blob Storage, Google Cloud Storage
+  # Supported cloud storage services: AWS S3, Minio S3, Azure Blob Storage
   # Additional support can added. Visit this repository for details
-  # Ref: https://github.com/maorfr/skbn
-  destination: "s3://jenkins-data/backup"
+  # Ref: https://github.com/nuvo/skbn
+  destination: "s3://nuvo-jenkins-data/backup"
 checkDeprecation: true
+
+permanentagent:
+  podLabels:
+    logging.elk.stack: platform
+  componentName: "jenkins-permanent-agent"
+  
+  resources: 
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 50m
+      memory: 50Mi
+
+  # Path of the swarm client file
+  swarmBin: ""
+  
+  # Num Executors to configure on the agent
+  executors: ""
+  
+  # Num of Agents that you want to deploy
+  replicas: ""
+  
+  # Enable or disable the config to connect with ssp and mutualtls. 
+  # This add a p12 certificate inside the slave containers and is ready to use with some endpoint that need to connect.
+  sspmutualtls:
+    enabled: false
+    # Directory to save the NSS database and the certificates
+    ssldir: /etc/ssl/sspmutualtls
+    # Certificate to use to connect with another endpoint
+    sspcrt: ""
+    # P12 password from the certificate to import in the nss Database
+    p12passwd: ""
+    # NSS password to use with the curl calls
+    nsspasswd: ""
+
+# Variables to enable proxy on all containers. 
+# In case of null port will create http and https environment variables with standar ports (80/443)
+proxy:
+  enabled: true
+  server: proxyserv.svb.lacaixa.es
+  port: 8080
+
+# Enable the feature to build images with the agents. This works with podman
+# If you config the 'enabled = true' is necessary to delete the 'securitycontext' part of variable 'yamltemplate'
+buildImages:
+  enabled: false
+  #Format to create the images. Supported types (docker/oci)
+  format: ""
+
