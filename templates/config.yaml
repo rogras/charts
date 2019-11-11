@@ -1,0 +1,52 @@
+{{- if not .Values.master.customConfigMap }}
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "jenkins.fullname" . }}
+  labels:
+    "app.kubernetes.io/name": '{{ template "jenkins.name" .}}'
+    "helm.sh/chart": "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    "app.kubernetes.io/managed-by": "{{ .Release.Service }}"
+    "app.kubernetes.io/instance": "{{ .Release.Name }}"
+    "app.kubernetes.io/component": "{{ .Values.master.componentName }}"
+data:
+  config.xml: |-
+    {{ include "custom.config" . | b64enc }}
+{{- if .Values.master.scriptApproval }}
+  scriptapproval.xml: |-
+    {{ include "custom.scriptapproval" . | b64enc }}
+{{- end }}
+  jenkins.model.JenkinsLocationConfiguration.xml: |-
+    {{ include "custom.JenkinsLocationConfiguration" . | b64enc }}
+  org.jenkinsci.plugins.workflow.libs.GlobalLibraries.xml: |-
+    {{ include "custom.GlobalLibraries" . | b64enc }}
+  jenkins.CLI.xml: |-
+    {{ include "custom.CLI" . | b64enc }}
+  apply_config.sh: |-
+    {{ include "custom.apply_config" . | b64enc }}
+    {{- range $key, $val := .Values.master.initScripts }}
+  init{{ $key }}.groovy: |-
+{{ $val | indent 4 | b64enc}}
+{{- end }}
+{{- if .Values.master.JCasC.enabled }}
+  {{- if .Values.master.sidecars.configAutoReload.enabled }}
+  init-add-ssh-key-to-admin.groovy: |-
+    {{ include "custom.init-add-ssh-key-to-admin" . | b64enc }}
+  {{- else }}
+# Only add config to this script if we aren't auto-reloading otherwise the pod will restart upon each config change:
+{{- range $key, $val := .Values.master.JCasC.configScripts }}
+  {{ $key }}.yaml: |- 
+    {{ tpl $val $| b64enc }}
+{{- end }}
+{{- end }}
+{{- end }}
+  plugins.txt: |-
+    {{ include "custom.plugins" . | b64enc }}
+{{- if .Values.master.additionalConfig }}
+{{- range $key, $val := .Values.master.additionalConfig }}
+  {{ $key }}: |- 
+    {{ tpl $val $| b64enc }}
+{{- end }}
+{{- end }}
+{{- end }}
